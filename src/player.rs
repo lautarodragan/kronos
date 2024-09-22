@@ -133,8 +133,7 @@ impl Player {
                     move |src: &mut FullSource| {
                         if must_stop.swap(false, Ordering::SeqCst) {
                             src.stop();
-                            // src.inner_mut().skip();
-                            src.skip();
+                            src.inner_mut().skip();
                             *position.lock().unwrap() = Duration::ZERO;
                             is_stopped.store(true, Ordering::SeqCst);
                             let _ = ended_sender.send(());
@@ -156,19 +155,20 @@ impl Player {
                     }
                 };
 
-                let mut source = JolteonSource::from_file(path, periodic_access);
+                // let mut source = JolteonSource::from_file(path, periodic_access);
+                let mut source = crate::sample::from_file(path, periodic_access);
                 // let mut source = source.inner();
 
                 if start_time > Duration::ZERO {
                     debug!("start_time > Duration::ZERO, {:?}", start_time);
-                    if let Err(err) = source.inner_mut().inner_mut().try_seek(start_time) {
+                    if let Err(err) = source.try_seek(start_time) {
                         error!("start_time > 0 try_seek() error. {:?}", err)
                     }
                     *position.lock().unwrap() = start_time;
                 }
 
                 debug!("s.play_raw()");
-                if let Err(err) = output_stream.play_raw(source) {
+                if let Err(err) = output_stream.play_raw(source) { // Does `mixer.add(source)`. Mixer is tied to the CPAL thread, which starts consuming the source automatically.
                     error!("os.play_raw error! {:?}", err);
                     continue;
                 }
