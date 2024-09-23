@@ -149,8 +149,7 @@ impl Player {
                     }
                 };
 
-                let position2 = position.clone();
-                let mut source = Source::from_file(path, periodic_access, position2);
+                let mut source = Source::from_file(path, periodic_access, position.clone());
 
                 if start_time > Duration::ZERO {
                     debug!("start_time > Duration::ZERO, {:?}", start_time);
