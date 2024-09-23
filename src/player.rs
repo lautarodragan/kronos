@@ -145,7 +145,7 @@ impl Player {
                         src.set_paused(pause.load(Ordering::SeqCst));
 
                         if let Some(seek) = must_seek.lock().unwrap().take() {
-                            if let Err(err) = src.try_seek(seek) {
+                            if let Err(err) = src.seek(seek) {
                                 error!("periodic_access.try_seek() error. {:?}", err)
                             }
                         }
@@ -156,7 +156,7 @@ impl Player {
 
                 if start_time > Duration::ZERO {
                     debug!("start_time > Duration::ZERO, {:?}", start_time);
-                    if let Err(err) = source.try_seek(start_time) {
+                    if let Err(err) = source.seek(start_time) {
                         error!("start_time > 0 try_seek() error. {:?}", err)
                     }
                     *position.lock().unwrap() = start_time;

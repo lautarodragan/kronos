@@ -7,7 +7,6 @@ use std::time::Duration;
 use rodio::{
     Decoder,
     Source as RodioSource,
-    Sample,
     source::{Amplify, Pausable, PeriodicAccess, SamplesConverter, Skippable, Speed, Stoppable, TrackPosition, SeekError},
 };
 
@@ -46,7 +45,7 @@ impl Controls<'_> {
     }
 
     #[inline]
-    pub fn try_seek(&mut self, position: Duration) -> Result<(), SeekError> {
+    pub fn seek(&mut self, position: Duration) -> Result<(), SeekError> {
         self.src.try_seek(position)
     }
 }
@@ -93,33 +92,17 @@ where
     F: FnMut(&mut FullRodioSource) + Send,
 {
 
-
-    // /// Returns a reference to the inner source.
-    // #[inline]
-    // pub fn inner(&self) -> &FullFull<F> {
-    //     &self.input
-    // }
-    //
-    /// Returns a mutable reference to the inner source.
     #[inline]
     pub fn inner_mut(&mut self) -> &mut PeriodicRodioSource<F> {
         &mut self.input
     }
-    //
-    // /// Returns the inner source.
-    // #[inline]
-    // pub fn into_inner(self) -> FullFull<F> {
-    //     self.input
-    // }
 
-    pub fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        log::debug!("TRY_SEEK?");
+    pub fn seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         let i = self.input.inner_mut().inner_mut().inner_mut();
         i.try_seek(pos)
     }
 
     pub fn skip(&mut self) -> () {
-        log::debug!("skip?");
         let i = self.input.inner_mut().inner_mut().inner_mut();
         i.skip()
     }
