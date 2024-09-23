@@ -43,34 +43,36 @@ pub struct JolteonSource<F> {
     input: FullFull<F>,
 }
 
-pub fn from_file(path: PathBuf, mut periodic_access: impl FnMut(&mut JolteonSourcePeriodic) + Send) -> JolteonSource<Box<impl FnMut(&mut FullSource) + Send>>
-{
-    let pos = Arc::new(Mutex::new(Duration::ZERO));
+impl JolteonSource<()> {
+    pub fn from_file(path: PathBuf, mut periodic_access: impl FnMut(&mut JolteonSourcePeriodic) + Send) -> JolteonSource<Box<impl FnMut(&mut FullSource) + Send>>
+    {
+        let pos = Arc::new(Mutex::new(Duration::ZERO));
 
-    let periodic_access_inner = {
-        let pos = pos.clone();
+        let periodic_access_inner = {
+            let pos = pos.clone();
 
-        Box::new(move |src: &mut FullSource| {
-            *pos.lock().unwrap() = src.inner().inner().inner().inner().get_pos();
-            let mut something = JolteonSourcePeriodic { src };
-            periodic_access(&mut something);
-        })
-    };
+            Box::new(move |src: &mut FullSource| {
+                *pos.lock().unwrap() = src.inner().inner().inner().inner().get_pos();
+                let mut something = JolteonSourcePeriodic { src };
+                periodic_access(&mut something);
+            })
+        };
 
-    let file = BufReader::new(File::open(path).unwrap());
-    let source = Decoder::new(file).unwrap();
-    let input = source
-        .speed(1.0)
-        .track_position()
-        .pausable(false)
-        .amplify(1.0)
-        .skippable()
-        .stoppable()
-        .periodic_access(Duration::from_millis(5), periodic_access_inner)
-        .convert_samples();
+        let file = BufReader::new(File::open(path).unwrap());
+        let source = Decoder::new(file).unwrap();
+        let input = source
+            .speed(1.0)
+            .track_position()
+            .pausable(false)
+            .amplify(1.0)
+            .skippable()
+            .stoppable()
+            .periodic_access(Duration::from_millis(5), periodic_access_inner)
+            .convert_samples();
 
-    JolteonSource {
-        input,
+        JolteonSource {
+            input,
+        }
     }
 }
 
@@ -79,28 +81,6 @@ where
     F: FnMut(&mut FullSource) + Send,
 {
 
-    // pub fn from_file(path: PathBuf, mut periodic_access: impl FnMut(&mut FullSource) + Send) -> JolteonSource<Box<impl FnMut(&mut FullSource) + Send>>
-    // {
-    //     let periodic_access_inner = Box::new(move |src: &mut FullSource| {
-    //         periodic_access(src);
-    //     });
-    //
-    //     let file = BufReader::new(File::open(path).unwrap());
-    //     let source = Decoder::new(file).unwrap();
-    //     let input = source
-    //         .speed(1.0)
-    //         .track_position()
-    //         .pausable(false)
-    //         .amplify(1.0)
-    //         .skippable()
-    //         .stoppable()
-    //         .periodic_access(Duration::from_millis(5), periodic_access_inner)
-    //         .convert_samples();
-    //
-    //     JolteonSource {
-    //         input,
-    //     }
-    // }
 
     // /// Returns a reference to the inner source.
     // #[inline]
@@ -131,11 +111,6 @@ where
         let i = self.input.inner_mut().inner_mut().inner_mut();
         i.skip()
     }
-
-    // pub fn set_paused(&mut self, paused: bool) {
-    //     let a = self.inner_mut();
-    //
-    // }
 }
 
 impl<F> Iterator for JolteonSource<F>

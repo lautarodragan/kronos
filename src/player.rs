@@ -153,7 +153,7 @@ impl Player {
                     }
                 };
 
-                let mut source = crate::source::from_file(path, periodic_access);
+                let mut source = JolteonSource::from_file(path, periodic_access);
 
                 if start_time > Duration::ZERO {
                     debug!("start_time > Duration::ZERO, {:?}", start_time);
