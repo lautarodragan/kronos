@@ -15,8 +15,9 @@ use rodio::{OutputStreamHandle, Source};
 use crate::{
     cue::CueSheet,
     structs::{Queue, Song},
-    sample::{JolteonSource, FullSource},
+    source::{JolteonSource, FullSource},
 };
+use crate::source::JolteonSourcePeriodic;
 
 pub struct Player {
     output_stream: OutputStreamHandle,
@@ -130,34 +131,29 @@ impl Player {
                     let pause = pause.clone();
                     let must_seek = must_seek.clone();
 
-                    move |src: &mut FullSource| {
+                    move |src: &mut JolteonSourcePeriodic| {
                         if must_stop.swap(false, Ordering::SeqCst) {
                             src.stop();
-                            src.inner_mut().skip();
+                            src.skip();
                             *position.lock().unwrap() = Duration::ZERO;
                             is_stopped.store(true, Ordering::SeqCst);
                             let _ = ended_sender.send(());
                         } else {
-                            *position.lock().unwrap() = src.inner().inner().inner().inner().get_pos();
+                            *position.lock().unwrap() = src.pos()
                         }
 
-                        let amp = src.inner_mut().inner_mut();
-                        amp.set_factor(*volume.lock().unwrap());
-
-                        let pausable = amp.inner_mut();
-                        pausable.set_paused(pause.load(Ordering::SeqCst));
+                        src.set_volume(*volume.lock().unwrap());
+                        src.set_paused(pause.load(Ordering::SeqCst));
 
                         if let Some(seek) = must_seek.lock().unwrap().take() {
-                            if let Err(err) = amp.try_seek(seek) {
-                                error!("start_time > 0 try_seek() error. {:?}", err)
+                            if let Err(err) = src.try_seek(seek) {
+                                error!("periodic_access.try_seek() error. {:?}", err)
                             }
                         }
                     }
                 };
 
-                // let mut source = JolteonSource::from_file(path, periodic_access);
-                let mut source = crate::sample::from_file(path, periodic_access);
-                // let mut source = source.inner();
+                let mut source = crate::source::from_file(path, periodic_access);
 
                 if start_time > Duration::ZERO {
                     debug!("start_time > Duration::ZERO, {:?}", start_time);
