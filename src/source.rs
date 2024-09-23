@@ -9,11 +9,11 @@ use rodio::{Decoder, Source, source::{Amplify, Pausable, PeriodicAccess, Samples
 pub type FullSource = Stoppable<Skippable<Amplify<Pausable<TrackPosition<Speed<Decoder<BufReader<File>>>>>>>>;
 pub type FullFull<F> = SamplesConverter<PeriodicAccess<FullSource, F>, f32>;
 
-pub struct JolteonSourcePeriodic<'a> {
+pub struct JolteonSourceControls<'a> {
     src: &'a mut FullSource,
 }
 
-impl JolteonSourcePeriodic<'_> {
+impl JolteonSourceControls<'_> {
     pub fn stop(&mut self) {
         self.src.stop();
     }
@@ -44,7 +44,7 @@ pub struct JolteonSource<F> {
 }
 
 impl JolteonSource<()> {
-    pub fn from_file(path: PathBuf, mut periodic_access: impl FnMut(&mut JolteonSourcePeriodic) + Send) -> JolteonSource<Box<impl FnMut(&mut FullSource) + Send>>
+    pub fn from_file(path: PathBuf, mut periodic_access: impl FnMut(&mut JolteonSourceControls) + Send) -> JolteonSource<Box<impl FnMut(&mut FullSource) + Send>>
     {
         let pos = Arc::new(Mutex::new(Duration::ZERO));
 
@@ -53,7 +53,7 @@ impl JolteonSource<()> {
 
             Box::new(move |src: &mut FullSource| {
                 *pos.lock().unwrap() = src.inner().inner().inner().inner().get_pos();
-                let mut something = JolteonSourcePeriodic { src };
+                let mut something = JolteonSourceControls { src };
                 periodic_access(&mut something);
             })
         };

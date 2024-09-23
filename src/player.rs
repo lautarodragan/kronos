@@ -17,7 +17,7 @@ use crate::{
     structs::{Queue, Song},
     source::{JolteonSource, FullSource},
 };
-use crate::source::JolteonSourcePeriodic;
+use crate::source::JolteonSourceControls;
 
 pub struct Player {
     output_stream: OutputStreamHandle,
@@ -131,7 +131,7 @@ impl Player {
                     let pause = pause.clone();
                     let must_seek = must_seek.clone();
 
-                    move |src: &mut JolteonSourcePeriodic| {
+                    move |src: &mut JolteonSourceControls| {
                         if must_stop.swap(false, Ordering::SeqCst) {
                             src.stop();
                             src.skip();
