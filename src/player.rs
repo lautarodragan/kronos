@@ -130,22 +130,22 @@ impl Player {
                     let pause = pause.clone();
                     let must_seek = must_seek.clone();
 
-                    move |src: &mut Controls| {
+                    move |controls: &mut Controls| {
                         if must_stop.swap(false, Ordering::SeqCst) {
-                            src.stop();
-                            src.skip();
+                            controls.stop();
+                            controls.skip();
                             *position.lock().unwrap() = Duration::ZERO;
                             is_stopped.store(true, Ordering::SeqCst);
                             let _ = ended_sender.send(());
                         } else {
-                            *position.lock().unwrap() = src.pos()
+                            *position.lock().unwrap() = controls.pos()
                         }
 
-                        src.set_volume(*volume.lock().unwrap());
-                        src.set_paused(pause.load(Ordering::SeqCst));
+                        controls.set_volume(*volume.lock().unwrap());
+                        controls.set_paused(pause.load(Ordering::SeqCst));
 
                         if let Some(seek) = must_seek.lock().unwrap().take() {
-                            if let Err(err) = src.seek(seek) {
+                            if let Err(err) = controls.seek(seek) {
                                 error!("periodic_access.try_seek() error. {:?}", err)
                             }
                         }
