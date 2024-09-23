@@ -125,7 +125,7 @@ impl Player {
                     let is_stopped = is_stopped.clone();
                     let must_stop = must_stop.clone();
                     let ended_sender = ended_sender.clone();
-                    let position = position.clone();
+                    // let position = position.clone();
                     let volume = volume.clone();
                     let pause = pause.clone();
                     let must_seek = must_seek.clone();
@@ -134,11 +134,8 @@ impl Player {
                         if must_stop.swap(false, Ordering::SeqCst) {
                             controls.stop();
                             controls.skip();
-                            *position.lock().unwrap() = Duration::ZERO;
                             is_stopped.store(true, Ordering::SeqCst);
                             let _ = ended_sender.send(());
-                        } else {
-                            *position.lock().unwrap() = controls.pos()
                         }
 
                         controls.set_volume(*volume.lock().unwrap());
@@ -152,7 +149,8 @@ impl Player {
                     }
                 };
 
-                let mut source = Source::from_file(path, periodic_access);
+                let position2 = position.clone();
+                let mut source = Source::from_file(path, periodic_access, position2);
 
                 if start_time > Duration::ZERO {
                     debug!("start_time > Duration::ZERO, {:?}", start_time);

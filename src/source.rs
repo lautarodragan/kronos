@@ -15,6 +15,7 @@ type PeriodicRodioSource<F> = SamplesConverter<PeriodicAccess<FullRodioSource, F
 
 pub struct Controls<'a> {
     src: &'a mut FullRodioSource,
+    shared_pos: &'a Arc<Mutex<Duration>>,
 }
 
 impl Controls<'_> {
@@ -22,6 +23,7 @@ impl Controls<'_> {
     #[inline]
     pub fn stop(&mut self) {
         self.src.stop();
+        self.set_pos(Duration::ZERO);
     }
 
     #[inline]
@@ -32,6 +34,16 @@ impl Controls<'_> {
     #[inline]
     pub fn pos(&self) -> Duration {
         self.src.inner().inner().inner().inner().get_pos()
+    }
+
+    #[inline]
+    pub fn set_pos(&self, pos: Duration) {
+        *self.shared_pos.lock().unwrap() = pos;
+    }
+
+    #[inline]
+    pub fn refresh_pos(&self) {
+        self.set_pos(self.pos());
     }
 
     #[inline]
@@ -55,17 +67,17 @@ pub struct Source<F> {
 }
 
 impl Source<()> {
-    pub fn from_file(path: PathBuf, mut periodic_access: impl FnMut(&mut Controls) + Send) -> Source<Box<impl FnMut(&mut FullRodioSource) + Send>>
+    pub fn from_file(
+        path: PathBuf,
+        mut periodic_access: impl FnMut(&mut Controls) + Send,
+        shared_pos: Arc<Mutex<Duration>>,
+    ) -> Source<Box<impl FnMut(&mut FullRodioSource) + Send>>
     {
-        let pos = Arc::new(Mutex::new(Duration::ZERO));
-
         let periodic_access_inner = {
-            let pos = pos.clone();
-
             Box::new(move |src: &mut FullRodioSource| {
-                *pos.lock().unwrap() = src.inner().inner().inner().inner().get_pos();
-                let mut something = Controls { src };
-                periodic_access(&mut something);
+                let mut controls = Controls { src, shared_pos: &shared_pos };
+                controls.refresh_pos();
+                periodic_access(&mut controls);
             })
         };
 
