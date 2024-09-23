@@ -10,14 +10,13 @@ use std::{
 };
 
 use log::{debug, error};
-use rodio::{OutputStreamHandle, Source};
+use rodio::{OutputStreamHandle};
 
 use crate::{
     cue::CueSheet,
     structs::{Queue, Song},
-    source::{JolteonSource, FullSource},
+    source::{Source, Controls},
 };
-use crate::source::JolteonSourceControls;
 
 pub struct Player {
     output_stream: OutputStreamHandle,
@@ -131,7 +130,7 @@ impl Player {
                     let pause = pause.clone();
                     let must_seek = must_seek.clone();
 
-                    move |src: &mut JolteonSourceControls| {
+                    move |src: &mut Controls| {
                         if must_stop.swap(false, Ordering::SeqCst) {
                             src.stop();
                             src.skip();
@@ -153,7 +152,7 @@ impl Player {
                     }
                 };
 
-                let mut source = JolteonSource::from_file(path, periodic_access);
+                let mut source = Source::from_file(path, periodic_access);
 
                 if start_time > Duration::ZERO {
                     debug!("start_time > Duration::ZERO, {:?}", start_time);

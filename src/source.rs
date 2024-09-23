@@ -4,56 +4,68 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use rodio::{Decoder, Source, source::{Amplify, Pausable, PeriodicAccess, SamplesConverter, Skippable, Speed, Stoppable, TrackPosition, SeekError}, Sample};
+use rodio::{
+    Decoder,
+    Source as RodioSource,
+    Sample,
+    source::{Amplify, Pausable, PeriodicAccess, SamplesConverter, Skippable, Speed, Stoppable, TrackPosition, SeekError},
+};
 
-pub type FullSource = Stoppable<Skippable<Amplify<Pausable<TrackPosition<Speed<Decoder<BufReader<File>>>>>>>>;
-pub type FullFull<F> = SamplesConverter<PeriodicAccess<FullSource, F>, f32>;
+type FullRodioSource = Stoppable<Skippable<Amplify<Pausable<TrackPosition<Speed<Decoder<BufReader<File>>>>>>>>;
+type PeriodicRodioSource<F> = SamplesConverter<PeriodicAccess<FullRodioSource, F>, f32>;
 
-pub struct JolteonSourceControls<'a> {
-    src: &'a mut FullSource,
+pub struct Controls<'a> {
+    src: &'a mut FullRodioSource,
 }
 
-impl JolteonSourceControls<'_> {
+impl Controls<'_> {
+
+    #[inline]
     pub fn stop(&mut self) {
         self.src.stop();
     }
 
+    #[inline]
     pub fn skip(&mut self) {
         self.src.inner_mut().skip();
     }
 
+    #[inline]
     pub fn pos(&self) -> Duration {
         self.src.inner().inner().inner().inner().get_pos()
     }
 
+    #[inline]
     pub fn set_volume(&mut self, factor: f32) {
         self.src.inner_mut().inner_mut().set_factor(factor)
     }
 
+    #[inline]
     pub fn set_paused(&mut self, paused: bool) {
         self.src.inner_mut().inner_mut().inner_mut().set_paused(paused)
     }
 
+    #[inline]
     pub fn try_seek(&mut self, position: Duration) -> Result<(), SeekError> {
         self.src.try_seek(position)
     }
 }
 
-pub struct JolteonSource<F> {
-    input: FullFull<F>,
+pub struct Source<F> {
+    input: PeriodicRodioSource<F>,
 }
 
-impl JolteonSource<()> {
-    pub fn from_file(path: PathBuf, mut periodic_access: impl FnMut(&mut JolteonSourceControls) + Send) -> JolteonSource<Box<impl FnMut(&mut FullSource) + Send>>
+impl Source<()> {
+    pub fn from_file(path: PathBuf, mut periodic_access: impl FnMut(&mut Controls) + Send) -> Source<Box<impl FnMut(&mut FullRodioSource) + Send>>
     {
         let pos = Arc::new(Mutex::new(Duration::ZERO));
 
         let periodic_access_inner = {
             let pos = pos.clone();
 
-            Box::new(move |src: &mut FullSource| {
+            Box::new(move |src: &mut FullRodioSource| {
                 *pos.lock().unwrap() = src.inner().inner().inner().inner().get_pos();
-                let mut something = JolteonSourceControls { src };
+                let mut something = Controls { src };
                 periodic_access(&mut something);
             })
         };
@@ -70,15 +82,15 @@ impl JolteonSource<()> {
             .periodic_access(Duration::from_millis(5), periodic_access_inner)
             .convert_samples();
 
-        JolteonSource {
+        Source {
             input,
         }
     }
 }
 
-impl<F: FnMut(&mut FullSource) + Send> JolteonSource<F>
+impl<F: FnMut(&mut FullRodioSource) + Send> Source<F>
 where
-    F: FnMut(&mut FullSource) + Send,
+    F: FnMut(&mut FullRodioSource) + Send,
 {
 
 
@@ -90,7 +102,7 @@ where
     //
     /// Returns a mutable reference to the inner source.
     #[inline]
-    pub fn inner_mut(&mut self) -> &mut FullFull<F> {
+    pub fn inner_mut(&mut self) -> &mut PeriodicRodioSource<F> {
         &mut self.input
     }
     //
@@ -113,9 +125,9 @@ where
     }
 }
 
-impl<F> Iterator for JolteonSource<F>
+impl<F> Iterator for Source<F>
 where
-    F: FnMut(&mut FullSource),
+    F: FnMut(&mut FullRodioSource),
 {
     type Item = f32;
 
@@ -130,9 +142,9 @@ where
     }
 }
 
-impl<F> Source for JolteonSource<F>
+impl<F> RodioSource for Source<F>
 where
-    F: FnMut(&mut FullSource),
+    F: FnMut(&mut FullRodioSource),
 {
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
